@@ -1,0 +1,16 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: first-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    # Replace with a public IP block (e.g. 203.0.113.0/24)
+    # or local IP range (e.g. 192.168.1.240-192.168.1.250)
+    - <REPLACE_WITH_YOUR_PUBLIC_OR_PRIVATE_IP_RANGE>
+
+  
+
+
+
+  
