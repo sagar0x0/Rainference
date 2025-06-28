@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: llama-8b-ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: "nginx"  # Optional: adjusts the path for the service
+spec:
+  rules:
+  - host: llama8b.model   # (Workarround: modify etc/host file 10.146.0.10)Use your own domain or MetalLB IP if you don’t have a domain
+    http:
+      paths:
+      - path: /          # Optional: you can define a path if desired
+        pathType: Prefix
+        backend:
+          service:
+            name: llama-8b  # This should match the name of your service
+            port:
+              number: 80  # This should match the port exposed by your service
+

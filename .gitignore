@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Node / Frontend
+node_modules/
+*.log
+
+# Environment
+.env
+.env.*
+
+# macOS
+.DS_Store
+
+# IDEs and Editors
+.vscode/
+.idea/
+
+# Build / Cache
+dist/
+build/
+.cache/
+.pytest_cache/
+
+# OS Trash
+.Trash-*
+
+# Optional: Virtual Environments
+venv/
+.venv/

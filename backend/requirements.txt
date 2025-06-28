@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+python-dotenv
+pydantic
+redis[asyncio]
+uuid
+requests
+python-dotenv
+stripe 
+httpx
+psycopg2
+psycopg[pool,binary]
+apscheduler
