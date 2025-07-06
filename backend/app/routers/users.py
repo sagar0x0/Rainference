@@ -1,14 +1,14 @@
-from fastapi import APIRouter, Depends, Header, Request
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from fastapi import Header, Request, HTTPException
-from fastapi.responses import HTMLResponse ,JSONResponse
-from redis.asyncio import Redis
-from redis.exceptions import RedisError
 import logging
+import traceback
 import psycopg2
 from psycopg import AsyncConnection
 
-from database.db import get_redis_client, get_psql_conn
+from fastapi import APIRouter, Depends, Header, Request, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.responses import JSONResponse
+from redis.asyncio import Redis
+
+from backend.database.db import get_redis_client, get_psql_conn
 
 router = APIRouter()
 
@@ -25,33 +25,45 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/users/info")
-async def get_info(authorization: str = Header(None), redis: Redis = Depends(get_redis_client),
-                   conn: AsyncConnection = Depends(get_psql_conn)):
+async def get_info(
+    authorization: str = Header(None),
+    redis: Redis = Depends(get_redis_client),
+    conn: AsyncConnection = Depends(get_psql_conn),
+):
 
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid or missing authorization token")
-    
+        raise HTTPException(
+            status_code=401, detail="Invalid or missing authorization token"
+        )
+
     bearer_token = authorization.split(" ")[1]  # Extract the token
 
     # get the user_id form redis
     user_id = await redis.get(f"bearer_token:{bearer_token}")
     if not user_id:
-        raise HTTPException(status_code=400, detail="User not found for the given token")
+        raise HTTPException(
+            status_code=400, detail="User not found for the given token"
+        )
 
     try:
         # get the user data from psql
         async with conn.cursor() as cursor:
-            query = '''
+            query = """
             SELECT user_id, user_name, llm_api_token, bearer_token, fname, lname, email, balance
             FROM users WHERE user_id = %s
-            '''
+            """
             await cursor.execute(query, (user_id,))
             user_data = await cursor.fetchone()
 
         if not user_id:
-            return {"error":"user data not found"}
+            return {"error": "user data not found"}
+        
+        if user_data is None:
+            raise HTTPException(
+                status_code=404, detail="User data not found"
+            )
 
-        # parse the data 
+        # parse the data
         parsed_data = {
             "user_id": user_data[0],
             "user_name": user_data[1],
@@ -64,22 +76,22 @@ async def get_info(authorization: str = Header(None), redis: Redis = Depends(get
         }
 
         return parsed_data
-    
+
     except psycopg2.Error as e:
-        logger.error(f"Database error while fetching user info: {e}")
-        raise HTTPException(status_code=500, detail="Database error occurred")
+        logger.error("Database error while fetching user info: %s", e)
+        raise HTTPException(status_code=500, detail="Database error occurred") from e
     except Exception as e:
-        logger.exception(f"Unexpected error while fetching user info: {e}")
-        raise HTTPException(status_code=500, detail="An unexpected error occurred")
-
-
-
+        logger.exception("Unexpected error while fetching user info: %s", e)
+        raise HTTPException(status_code=500, detail="An unexpected error occurred") from e
 
 
 # Get API keys for the current user
 @router.get("/users/api-keys")
-async def get_api_keys(credentials: HTTPAuthorizationCredentials = Depends(security),
-    redis: Redis = Depends(get_redis_client), conn: AsyncConnection = Depends(get_psql_conn)):
+async def get_api_keys(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    redis: Redis = Depends(get_redis_client),
+    conn: AsyncConnection = Depends(get_psql_conn),
+):
     try:
         current_token = credentials.credentials
 
@@ -92,51 +104,55 @@ async def get_api_keys(credentials: HTTPAuthorizationCredentials = Depends(secur
         # Retrieve user data from psql
         async with conn.cursor() as cursor:
             # Define the query to fetch the llm_api_token for a given user_id
-                query = """
+            query = """
                 SELECT llm_api_token,fname, user_name
                 FROM users
                 WHERE user_id = %s
                 """
-                await cursor.execute(query, (user_id,))  # Execute the query with the user_id parameter
+            await cursor.execute(query, (user_id,))  # Execute the query with the user_id param
 
-                # Fetch the result
-                result = await cursor.fetchone()
+            # Fetch the result
+            result = await cursor.fetchone()
 
-                if result:
-                    return {
-                        "api_token": result[0],  # llm_api_token
-                        "fname": result[1],      # fname
-                        "user_name": result[2],  # user_name
-                    }
-                else:
-                    raise HTTPException(status_code=404, detail="No API token found for the user")
-                
+            if result:
+                return {
+                    "api_token": result[0],  # llm_api_token
+                    "fname": result[1],  # fname
+                    "user_name": result[2],  # user_name
+                }
+
+            raise HTTPException(
+                status_code=404, detail="No API token found for the user"
+            )
+
     except psycopg2.Error as db_err:
-        logger.exception(f"Database error occurred while regenerating API token: {str(db_err)}")
+        logger.exception("Database error occurred while regenerating API token: %s", str(db_err))
         return "Database error", None
-    
+
     except Exception as e:
-        logger.exception(f"Error occurred while fetching API keys: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-
-
-
-
-
+        logger.exception("Error occurred while fetching API keys: %s", str(e))
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}") from e
 
 
 @router.get("/balance")
-async def get_balance(authorization: str = Header(None), redis: Redis = Depends(get_redis_client),
-                      conn: AsyncConnection = Depends(get_psql_conn)):
+async def get_balance(
+    authorization: str = Header(None),
+    redis: Redis = Depends(get_redis_client),
+    conn: AsyncConnection = Depends(get_psql_conn),
+):
 
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid or missing authorization token")
-    
+        raise HTTPException(
+            status_code=401, detail="Invalid or missing authorization token"
+        )
+
     bearer_token = authorization.split(" ")[1]  # Extract the token
     user_id = await redis.get(f"bearer_token:{bearer_token}")
     if not user_id:
-        raise HTTPException(status_code=400, detail="User not found for the given token")
-    
+        raise HTTPException(
+            status_code=400, detail="User not found for the given token"
+        )
+
     # Fetch the user's balance from the database
     try:
         async with conn.cursor() as cursor:
@@ -148,42 +164,43 @@ async def get_balance(authorization: str = Header(None), redis: Redis = Depends(
             await cursor.execute(query, (user_id,))
             # Fetch the result
             result = await cursor.fetchone()
-        
+
         if result:
             current_balance = float(result[0])
         else:
-            raise HTTPException(status_code=404, detail="Balance not found for the user")
+            raise HTTPException(
+                status_code=404, detail="Balance not found for the user"
+            )
 
     except psycopg2.Error as db_err:
-        logger.exception(f"Database error while fetching balance: {str(db_err)}")
-        raise HTTPException(status_code=500, detail="Database error occurred")
+        logger.exception("Database error while fetching balance: %s", str(db_err))
+        raise HTTPException(status_code=500, detail="Database error occurred") from db_err
     except Exception as e:
-        logger.exception(f"Unexpected error: {str(e)}")
-        raise HTTPException(status_code=500, detail="An unexpected error occurred")
+        logger.exception("Unexpected error: %s", str(e))
+        raise HTTPException(status_code=500, detail="An unexpected error occurred") from e
 
     ## return the user balance details
     return {"user_id": user_id, "balance": current_balance}
 
 
-
-
-
-
-
 @router.get("/usage_dashboard")
-async def get_usage_dashboard(request: Request, redis: Redis = Depends(get_redis_client), 
-                              conn: AsyncConnection = Depends(get_psql_conn)):
+async def get_usage_dashboard(
+    request: Request,
+    redis: Redis = Depends(get_redis_client),
+    conn: AsyncConnection = Depends(get_psql_conn),
+):
     auth_header = request.headers.get("Authorization")
 
     if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+        raise HTTPException(
+            status_code=401, detail="Missing or invalid Authorization header"
+        )
 
     bearer_token = auth_header.split("Bearer ")[1]
 
     user_id = await redis.get(f"bearer_token:{bearer_token}")
     if user_id is None:
         raise HTTPException(status_code=401, detail="Invalid or expired bearer token")
-
 
     query = """
     SELECT
@@ -202,16 +219,19 @@ async def get_usage_dashboard(request: Request, redis: Redis = Depends(get_redis
             await cursor.execute(query, (user_id,))
             result = await cursor.fetchall()
 
-            usage_data = [{
-                "model": row[0],
-                "total_tokens": float(row[1]),
-                "total_spending": float(row[2]),
-            } for row in result]
+            usage_data = [
+                {
+                    "model": row[0],
+                    "total_tokens": float(row[1]),
+                    "total_spending": float(row[2]),
+                }
+                for row in result
+            ]
 
             return JSONResponse(content={"usage_data": usage_data})
 
-    except Exception as e:
-        import traceback
+    except Exception as e:                                                                           # pylint: disable=broad-exception-caught
+
         print("Error in /usage_dashboard:", traceback.format_exc())
-        conn.rollback()  # <== This line is important!
+        await conn.rollback()
         return JSONResponse(content={"error": str(e)}, status_code=500)
