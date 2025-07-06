@@ -39,7 +39,7 @@ async def lifespan(fastapi_app: FastAPI):
     try:
         await db.psql_pool.open()  # Open the pool connections
         print("PostgreSQL connection pool created.")
-    except Exception as e:                                                                           # pylint: disable=broad-exception-caught
+    except Exception as e:
         print(f"Failed to connect to PostgreSQL: {e}")
 
     yield  # The application runs here
