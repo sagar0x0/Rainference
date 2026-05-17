@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-config
+  namespace: default
+data:
+  dashboards.yml: |
+    apiVersion: 1
+    providers:
+    - name: 'Rainference'
+      orgId: 1
+      folder: ''
+      type: file
+      disableDeletion: false
+      updateIntervalSeconds: 10
+      options:
+        path: /var/lib/grafana/dashboards
+  vllm-dashboard.json: |
+    {
+      "title": "vLLM & API Metrics",
+      "panels": [
+        {
+          "title": "Token Throughput",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "rate(vllm:tokens_total[1m])",
+              "legendFormat": "{{type}} tokens/sec"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+        },
+        {
+          "title": "Request Latency (P99)",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.99, rate(vllm:e2e_request_latency_seconds_bucket[5m]))",
+              "legendFormat": "P99 Latency (s)"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+        },
+        {
+          "title": "GPU Utilization",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "DCGM_FI_DEV_GPU_UTIL",
+              "legendFormat": "GPU {{gpu}}"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+        },
+        {
+          "title": "FastAPI Token Generation Throughput",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "rate(inference_tokens_total[1m])",
+              "legendFormat": "{{type}}"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+        }
+      ]
+    }

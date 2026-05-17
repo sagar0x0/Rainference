@@ -14,6 +14,10 @@ spec:
     metadata:
       labels:
         app: llama-8b
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
     spec:
       volumes:
       - name: cache-volume

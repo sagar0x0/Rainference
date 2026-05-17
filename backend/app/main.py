@@ -68,12 +68,17 @@ app.add_middleware(
 )
 
 
+from prometheus_client import make_asgi_app
+
 # Include your routers
 app.include_router(users.router)
 app.include_router(inference.router)
 app.include_router(auth.router)
 app.include_router(payments.router)
 
+# Mount Prometheus metrics endpoint
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
 
 # root endpoint for health check
 @app.get("/")

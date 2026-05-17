@@ -11,3 +11,4 @@ httpx
 psycopg2
 psycopg[pool,binary]
 apscheduler
+prometheus-client
