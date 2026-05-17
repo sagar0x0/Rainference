@@ -273,7 +273,7 @@ async def chat_completions(request: Request, authorization: str = Header(None)):
         # Get JSON data from the incoming request
         data = await request.json()
         model = data.get("model", "meta-llama/Llama-3.1-8B-Instruct")
-        
+
         with INFERENCE_LATENCY.labels(model=model).time():
             # Ensure Authorization header is provided
             if not authorization:
@@ -302,32 +302,30 @@ async def chat_completions(request: Request, authorization: str = Header(None)):
 
             if bool_stream:
                 return StreamingResponse(
-                stream_kube_data(
-                    model, prompt, max_tokens, temperature, stream, bool_stream
-                ),
-                media_type="application/json",
+                    stream_kube_data(
+                        model, prompt, max_tokens, temperature, stream, bool_stream
+                    ),
+                    media_type="application/json",
                 )
 
             # Non-streaming response (accumulate and return the full output)
             response_data: Dict[str, Any] = {}
             async for chunk in stream_kube_data(
                 model, prompt, max_tokens, temperature, stream, bool_stream
-                ):
+            ):
                 response_data = chunk
 
             # Extract relevant fields for logging
             log_data = {
                 "prompt_tokens": response_data.get("usage", {}).get("prompt_tokens"),
-                "completion_tokens": response_data.get("usage", {}).get(
-                    "completion_tokens"
-                ),
+                "completion_tokens": response_data.get("usage", {}).get("completion_tokens"),
                 "total_tokens": response_data.get("usage", {}).get("total_tokens"),
                 "timestamp": response_data.get("created"),
                 "user_id": user_id,
                 "model": response_data.get("model"),
                 "log_id": response_data.get("id"),
             }
-            
+
             # Record Prometheus token metrics for non-streaming
             if log_data["prompt_tokens"]:
                 INFERENCE_TOKENS.labels(type="prompt", model=model).inc(log_data["prompt_tokens"])
@@ -339,9 +337,12 @@ async def chat_completions(request: Request, authorization: str = Header(None)):
 
             INFERENCE_REQUESTS.labels(status="success", model=model).inc()
             return JSONResponse(content=response_data)
-            
+
     except HTTPException as e:
         raise e
-    except Exception as e:
-        INFERENCE_REQUESTS.labels(status="error", model=data.get("model", "unknown") if 'data' in locals() else "unknown").inc()
+    except Exception as e:                                                                           # pylint: disable=broad-exception-caught
+        INFERENCE_REQUESTS.labels(
+            status="error",
+            model=data.get("model", "unknown") if "data" in locals() else "unknown"
+        ).inc()
         raise HTTPException(status_code=500, detail=f"Error: {e}") from e
