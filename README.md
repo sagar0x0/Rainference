@@ -1,6 +1,6 @@
 # Rainference
 
-> A production-grade, self-hosted LLM inference platform with OpenAI-compatible API, token-metered billing, Kubernetes-native secret management, and full observability — deployed on bare-metal GCP GPU infrastructure.
+> A production-grade, self-hosted LLM inference platform with OpenAI-compatible API, token-metered billing, Kubernetes-native secret management, and full observability deployed on bare-metal GCP GPU infrastructure.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
